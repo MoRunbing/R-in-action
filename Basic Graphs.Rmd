@@ -1,0 +1,205 @@
+---
+title: "Basic Graphs"
+author: "MRB"
+date: "2021/4/19"
+output: html_document
+---
+```{r simple bar plot}
+library(vcd)
+counts<-table(Arthritis$Improved)
+counts
+
+barplot(counts,
+        main="Simple Bar Plot",
+        xlab="Improvement",ylab="Frequency")
+barplot(counts,
+        main="Horizontal Bar Plot",
+        xlab="Frequency",ylab="Improvement",
+        horiz=TRUE)
+```
+
+```{r bar plot}
+library(vcd)
+plot(Arthritis$Improved,main="Simple Bar Plot",
+        xlab="Improvement",ylab="Frequency")
+plot(Arthritis$Improved,horiz=TRUE,main="Horizontal Bar Plot",
+        xlab="Frequency",ylab="Improvement")
+```
+
+```{r stacked and grouped bar plots}
+library(vcd)
+counts<-table(Arthritis$Improved,Arthritis$Treatment)
+counts
+
+barplot(counts,
+        main="Stacked bar plot",
+        xlab = "Treatment",ylab = "Frequency",
+        col = c("red","yellow","green"),
+        legend=rownames(counts))# only useful when height is a matrix
+
+# rearrange the legend to avoid overlap with the bars?#
+barplot(counts,
+        main="Grouped bar plot",
+        xlab = "Treatment",ylab = "Frequency",
+        col = c("red","yellow","green"),
+        legend=rownames(counts),
+        beside = TRUE)
+```
+
+```{r mean bar plots}
+states<-data.frame(state.region,state.x77)
+states
+means<-aggregate(states$Illiteracy,by=list(state.region),FUN=mean)#分类汇总
+means
+means<-means[order(means$x),] #排序
+means
+barplot(means$x,names.arg=means$Group.1)#specify a character vector of names used to label bars
+title("Mean Illiteracy Rate")
+```
+
+```{r fitting labels in a bar plot}
+par(mar=c(5,8,4,2))#margin 下左上右
+par(las=2)#las参数 坐标刻度标签的方向。0表示总是平行于坐标轴,1表示总是水平,2表示总是垂直于坐标轴
+counts<-table(Arthritis$Improved)
+counts
+barplot(counts,
+        main = "Treatment outcome",
+        horiz = TRUE,
+        cex.names = 0.7,#行名比例大小
+        names.arg = c("No Improvement","Some Improvement","Marked Improvement"))
+```
+
+```{r Spinograms}
+library(vcd)
+attach(Arthritis)
+counts<-table(Treatment,Improved)
+spine(counts,main = "Spinogram Example")
+detach(Arthritis)
+```
+
+```{r pie charts}
+par(mfrow=c(2,2))#2*2拼贴图
+slices<-c(10,12,4,16,8)
+lbls1<-c("US","UK","Australia","Germany","France")
+pie(slices,labels = lbls1,main = "Simple Pie Chart")
+
+pct<-round(slices/sum(slices)*100)#add percentage,round四舍五入
+lbls2<-paste(lbls,pct,"%",sep = " ")#组合字符串
+pie(slices,labels = lbls2,col = rainbow(length(lbls2)),
+    main = "Pie Chart With Percentages")
+
+library(plotrix)
+pie3D(slices,labels=lbls1,explode=0.1,#explode函数把字符串分割为数组
+      main="3D Pie Chart")
+
+mytable<-table(state.region)
+lbls3<-paste(names(mytable),"\n",mytable,sep=" ")#\n为换行,即名字（换行）数值，以空格间隔
+pie(mytable,labels = lbls3,
+    main = "Pie Chart From a Table")
+```
+
+```{r fan plot}
+library(plotrix)
+slices<-c(10,12,4,16,8)
+lbls<-c("US","UK","Australia","Germany","France")
+fan.plot(slices,labels = lbls,main = "Fan Plot")#扇形图，便于比较
+```
+
+```{r histograms}
+par(mfrow=c(2,2))#2*2合并表
+
+hist(mtcars$mpg)#一共有32个值
+
+hist(mtcars$mpg,breaks = 12,col = "yellow",
+     xlab = "Miles Per Gallon",main = "Colored Histogram with 12 Bins")#分成12列
+
+hist(mtcars$mpg,freq = FALSE,breaks = 12,col = "red",
+     xlab = "Miles Per Gallon",main = "Histogram,rug plot,density curve")#频率分布图
+rug(jitter(mtcars$mpg,amount =0.01))#rug在直方图坐标轴上加须线
+#jitter画轴须图时，防止点的重叠，给每个数加上一个小的随机数
+lines(density(mtcars$mpg),col="BLUE",lwd=0.5)
+#breaks接收的可以是单个的数值，也可以是向量，当接收的是单个数值时表示间隔点的个数，当接收的是间隔点的值。
+#freq是接收的是True和False，当freq=True时，纵轴是频数，当freq=False时，纵轴是密度，当freq缺省时，当且仅当breaks是等距的，freq取True。
+
+x<-mtcars$mpg
+h<-hist(x,breaks=12,col="blue",xlab="Miles Per Gallon",
+        main="histogram with normal curve and box")
+xfit<-seq(min(x),max(x),length=40)
+yfit<-dnorm(xfit,mean=mean(x),sd=sd(x))#dnorm():输入的是x轴上的数值，输出的是该点的概率密度
+yfit<-yfit*diff(h$mids[1:2])*length(x)#yfit这个变量乘以（h变量中的mids元素的1、2个子元素的差分），再乘以x向量变量的长度，最后得到的值将yfit覆盖。注：这里的h可能是数据框，也可能是列表。
+lines(xfit,yfit,col="green",lwd=0.5)#正态分布曲线
+box()#图像外框
+```
+
+```{r Kernel density plot}
+par(mfrow=c(2,1))
+d<-density(mtcars$mpg)
+plot(d)
+plot(d,main="Kernel Density of Miles Per Gallon")
+polygon(d,col = "red",border = "blue")#draw a polygon whose vertices are given by x and y
+rug(mtcars$mpg,col = "brown")
+```
+
+```{r Comparative kernel density plots}
+par(lwd=2)
+library(sm)
+attach(mtcars)
+cyl.f<-factor(cyl,levels = c(4,6,8),labels = c("4 cylinder","6 cylinder","8 cylinder"))
+#cyl is transformed into a factor in order to provide value labels
+cyl.f
+sm.density.compare(mpg,cyl,xlab="Miles Per Gallon")
+title(main = "MPG Distribution by car cylinders")
+
+colfill<-c(2:(1+length(levels(cyl.f))))#vector of colors
+legend("topright",levels(cyl.f),fill=colfill)
+
+detach(mtcars)
+```
+
+```{r box plots}
+boxplot(mtcars$mpg,main="box plot",ylab="Miles Per Gallon")
+boxplot.stats(mtcars$mpg)
+
+boxplot(mpg~cyl,data = mtcars,main="Car Mileage Data",
+        xlab="Number of cylinders",ylab="Miles Per Gallon",
+        varwidth=TRUE,horizontal=TRUE,col="red",notch=TRUE)
+#varwidth will make the boxplot width proportional to the square root of a sample size
+#horizontal reverse the axis orientation
+#notch用于收腰
+```
+
+```{r boxplots for two crossed factors}
+mtcars$cyl.f<-factor(mtcars$cyl,levels = c(4,6,8),labels = c("4","6","8"))
+mtcars$am.f<-factor(mtcars$am,levels = c(0,1),labels = c("auto","standard"))
+boxplot(mpg~am.f*cyl.f,data=mtcars,varwidth=TRUE,
+        col=c("gold","darkgreen"),main="MPG distribution by auto type",xlab = "auto type")
+```
+
+```{r violin plots}
+x1<-mtcars$mpg[mtcars$mpg==4]
+x2<-mtcars$mpg[mtcars$mpg==6]
+x3<-mtcars$mpg[mtcars$mpg==8]
+vioplot(x1,x2,x3,names=c("4cyl","6cyl","8cyl"),col="gold")
+title("Violin Plots of Miles Per Gallon")
+```
+
+```{r dot plots}
+dotchart(mtcars$mpg,labels = row.names(mtcars),cex=0.7,
+         main = "Gas Mileage for Car Models",
+         xlab="Miles Per Gallon")
+```
+
+```{r dot plot grouped,sorted and colored}
+x<-mtcars[order(mtcars$mpg),]#在mtcars中按照mpg排序
+x$cyl<-factor(x$cyl)
+x$color[x$cyl==4]<-"red"
+x$color[x$cyl==6]<-"blue"
+x$color[x$cyl==8]<-"darkgreen"
+
+dotchart(x$mpg,labels=row.names(x),cex = 0.6,groups = x$cyl,
+         gcolor = "black",color = x$color,pch = 19,
+         main = "Gas Mileage for Car Models\ngrouped by cylinder",
+         xlab = "Miles Per Gallon")
+
+```
+
