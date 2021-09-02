@@ -1,0 +1,311 @@
+OLS回归 （普通最小二乘法）
+
+```{r 线性回归}
+women
+fit<-lm(weight~height,data = women)
+summary(fit)
+coefficients(fit)#参数
+confint(fit)#置信区间
+fitted(fit)#拟合模型预测值
+residuals(fit)#残差
+anova(fit)#方差分析
+vcov(fit)#协方差矩阵
+AIC(fit)#赤池信息统计量
+plot(fit)#诊断图
+
+plot(women$height,women$weight,xlab = "Height",ylab = "Weight")
+abline(fit)
+
+predict()#对新的数据集预测
+```
+OLS模型假设
+#正态性：对于固定的自变量值，因变量正态分布。
+#独立性：响应变量（对应预测（解释）变量）互相独立
+#线性
+#同方差性：因变量方差不随自变量水平变化
+#自变量固定且测量无误差
+
+```{r 多元线性回归}
+fit2<-lm(weight~height+I(height^2),data=women)
+summary(fit2) 
+
+plot(women$height,women$weight,xlab="Height",ylab = "Weight",main="Height-Weight Plot")
+lines(women$height,fitted(fit2))#fitted为预测值
+
+#线性也包括Y~log(x1)+sin(x2)这种（广义线性）
+
+library(car)
+scatterplot(weight~height,data=women,spread=F,#删除残差均方根在平滑曲线上的展开
+            smoother.args=list(lty=2),pch=19,#设置点线
+            main="Women",xlab = "Height",ylab = "Weight")
+
+```
+
+```{r 多元线性回归}
+states<-as.data.frame(state.x77[,c("Murder","Population","Illiteracy","Income","Frost")])
+
+#散点图矩阵
+cor(states)#相关系数
+library(car)
+scatterplotMatrix(states,spread=F,
+                  smoother.args=list(lty=2),
+                  main="Sactter Plot Matrix")
+
+fit3<-lm(Murder~Population+Illiteracy+Income+Frost,data = states)
+summary(fit3)
+```
+
+```{r 交互项的多元线性回归}
+fit4<-lm(mpg~hp+wt+hp:wt,data = mtcars)
+summary(fit4)
+
+#图形展示交互结果
+library(effects)
+plot(effect("hp:wt",fit4,,list(wt=c(2.2,3.2,4.2))),#wt取不同定值
+     multiline=T)
+```
+
+```{r 回归诊断}
+confint(fit3)#(大致估计)
+
+#标准方法
+#1.plot
+par(mfrow=c(2,2))
+plot(fit)
+plot(fit2)
+```
+左上图：残差应与估计值无关（拟合线几乎水平），而此图明显有二次关系（回归模型加上一个二次项可能会好一点），建议修改模型
+右上图：正态分布的QQ图，应成45°直线，若偏离过多，不符合正态分布
+左下图：方差检验，检验方差是否为定值这一前提
+右下图：检查数据分析项目中是否有特别极端的点（在这里我们引入了一个非常重要的指标：Cook距离。我们在线性模型里用Cook距离分析一个点是否非常“influential。”一般来说距离大于0.5的点就需要引起注意了。（结合专业知识具体分析））
+
+```{r Improvement 正态性}
+library(car)
+library(gvlma)
+states<-as.data.frame(state.x77[,c("Murder","Population","Illiteracy","Income","Frost")])
+fit3<-lm(Murder~Population+Illiteracy+Income+Frost,data = states)
+qqPlot(fit3,labels=row.names(states),id.method="identify",#交互式绘图，单击出现label的选项值
+       simulate=TRUE,#95%置信区间由参数自助法生成
+       main="Q-Q plot")
+
+states["Nevada",]
+fitted(fit3)
+residuals(fit3)["Nevada"]
+rstudent(fit3)["Nevada"]#rstudent:学生化残差是残差除以它的标准差后得到的数值
+
+#学生化残差柱状图
+residplot<-function(fit3,nbreaks=10){
+  z<-rstudent(fit3)
+  hist(z,breaks=nbreaks,freq=F,
+       xlab="Studentized Residual",
+       main="Distribution of Errors")
+  rug(jitter(z),col="brown")
+  curve(dnorm(x,mean=mean(z),sd=sd(z)),
+              add=T,col="blue",lwd=2)
+  lines(density(z)$x,density(z)$y,col="red",
+        lwd=2,lty=2)
+  legend("topright",legend = c("Normal Curve","Kernal Density Curve"),
+         lty=1:2,col=c("blue","red"),cex=0.7)
+}
+residplot(fit3)
+```
+
+```{r Improvement 误差的独立性}
+#Durbin-Watson实验：检测误差的序列相关性
+durbinWatsonTest(fit3)
+```
+
+```{r 线性}
+#成分残差图/偏残差图
+library(car)
+crPlots(fit3)
+```
+#若图形存在非线性，则建模不够充分
+
+```{r 同方差性}
+library(car)
+ncvTest(fit3)#生成计分检验，零假设为方差不变，备择假设为误差方差随拟合值水平的变化而变化
+spreadLevelPlot(fit3)#创建最佳拟合曲线散点图
+```
+
+```{r 线性模型的综合验证}
+library(gvlma)
+gvmodel<-gvlma(fit3)
+summary(gvmodel)
+```
+
+```{r 多重共线性}
+#用VIF方差膨胀因子进行检测
+library(car)
+vif(fit3)#
+sqrt(vif(fit3))>2#TRUE表示多重线性关系
+```
+
+```{r 异常观测值 离群点}
+library(car)
+outlierTest(fit3)#挑出离群点
+```
+
+```{r 异常观测值 高杠杆值点}
+#与其他变量有关的离群点，通过帽子统计量判断
+hat.plot<-function(fit3){
+  p<-length(coefficients(fit3))
+  n<-length(fitted(fit3))
+  plot(hatvalues(fit3),main="Index Plot of Hat Values")
+  abline(h=c(2,3)*p/n,col="red",lty=2)
+  identify(1:n,hatvalues(fit3),names(hatvalues(fit3)))
+}
+hat.plot(fit3)
+```
+
+```{r 异常值观测 强影响点}
+#检测指标：cook距离，或称D统计量，Cooks D 值大于4/(n-k-1)时，为强影响点
+#n为样本量大小，k为预测变量数目
+cutoff<-4/(nrow(states)-length(fit3$coefficients)-2)
+plot(fit3,which = 4,levels=cutoff)
+abline(h=cutoff,lty=2,col="red")
+
+#变量添加图
+library(car)
+avPlots(fit3,ask = F,id.method="identify")
+```
+
+```{r 离群点、杠杆值、强影响点整合图}
+library(car)
+influencePlot(fit3,id.method="identify",main="Influence Plot",
+              sub="Circle size is proportional to Cook's diatance")
+#纵坐标超过正负2可以看做是离群点，水平轴超过0.2or0.3可以看做有高杠杆值，圆圈大小与影响值成比例
+```
+
+```{r improvement 改进措施 删除观测点、变量}
+#删就完了（有时研究一下也行）
+#别的方法也可以试一试
+```
+
+```{r improvement 变量变换}
+#若是比例数，可以用logit变换
+#y-ln(y/(1-y))
+
+#Box-Cox正态变换
+library(car)
+summary(powerTransform(states$Murder))
+#用murder的0.6055次方比较好
+
+#Box-Tidwell变换
+boxTidwell(Murder~Population+Illiteracy,data = states)
+#population的0.86939次方和illiterracy的1.35812次方可以改善线性关系（p值那么大，不变也行
+```
+
+```{r 选择最佳模型 anova函数}
+#嵌套模型，像fit3、fit5(anova必须嵌套模型)
+fit5<-lm(Murder~Population+Illiteracy,data = states)
+anova(fit3,fit5)
+#p=0.9939不显著，故模型一致（那两个变量删了也罢
+```
+
+```{r 选择最佳模型 AIC函数}
+#AIC赤池信息准则，AIC较小的模型应优先选择(不必要嵌套模型)
+AIC(fit3,fit5)
+```
+
+```{r 变量选择 逐步回归法 stepwise method}
+library(MASS)
+stepAIC(fit3,direction = "backward")#直接出最优模型,然而并不是每个模型都被评价了
+```
+
+```{r 全子集回归}
+library(leaps)
+leaps<-regsubsets(Murder~Population+Illiteracy+Income+Frost,
+                 data=states,nbest=4)
+plot(leaps,scale="adjr2")
+#纵轴为残差的平方
+
+library(car)
+subsets(leaps,statistic = "cp",
+        main="CP Plot For All Subsets Regression")
+abline(1,1,lty=2,col="red")
+#越好的模型离截距项和斜率均为1的直线接近
+#PS：这个legend要自己点
+```
+
+```{r 深层次分析 交叉验证}
+#可以评价模型的泛化能力，即是否适合预测一般个体
+#交叉验证就是在训练样本上搞到回归方程，在保留样本上预测
+```
+
+```{r k重交叉验证 又名刀切法}
+#编辑一个函数
+shrinkage<-function(fit,k=10){
+  require(bootstrap)
+  theta.fit<-function(x,y){lsfit(x,y)}
+  theta.predict<-function(fit,x){cbind(1,x)%*%fit$coef}
+  
+  x<-fit$model[,2:ncol(fit$model)]
+  y<-fit$model[,1]
+  
+  results<-crossval(x,y,theta.fit,theta.predict,ngroup=k)
+  r2<-cor(y,fit$fitted.values)^2
+  r2cv<-cor(y,results$cv.fit)^2
+  
+  cat("Original R square=",r2,"\n")
+  cat(k,"Fold Cross-Validated R-Square=",r2cv,"\n")
+  cat("Change=",r2-r2cv,"\n")
+}
+
+shrinkage(fit3)
+#可以选用不同的fit来减少交叉验证后的R Square值
+#两个RR差的越少模型越好
+```
+
+
+由于变量尺度不同，故标准化后的回归系数才有可比性。
+标准化的回归系数表示其他变量不变时，预测变量一个标准差的变化可引起响应变量的预期变化。
+```{r 相对重要性}
+states<-as.data.frame(state.x77[,c("Murder","Population","Illiteracy","Income","Frost")])
+zstates<-as.data.frame(scale(states))
+zfit<-lm(Murder~Population+Income+Illiteracy+Frost,data = zstates)
+coef(zfit)
+```
+其他方法：
+1.可将相对重要性看成一个变量，评估对RR的贡献
+2.relaimpo包
+
+
+相对权重
+对所有可能子模型添加一个预测变量引起R平方平均增加量的一个近似值。
+```{r 相对权重}
+relweights <- function(fit,...){
+
+R <- cor(fit$model) 
+nvar <- ncol(R) 
+rxx <- R[2:nvar, 2:nvar] 
+rxy <- R[2:nvar, 1] 
+svd <- eigen(rxx) 
+evec <- svd$vectors 
+ev <- svd$values 
+delta <- diag(sqrt(ev)) 
+lambda <- evec %*% delta %*% t(evec) 
+lambdasq <- lambda ^ 2 
+beta <- solve(lambda) %*% rxy 
+rsquare <- colSums(beta ^ 2) 
+rawwgt <- lambdasq %*% beta ^ 2 
+import <- (rawwgt / rsquare) * 100 
+lbls <- names(fit$model[2:nvar]) 
+rownames(import) <- lbls 
+colnames(import) <- "Weights" 
+
+dotchart(t(import),names.arg=lbls,
+        ylab="% of R-Square",xlab="Predictor Variables",
+        main="Relative Importance of Predictor Variables", 
+        sub=paste("R-Square=", round(rsquare, digits=3)), ...)
+return(import) }
+
+relweights(fit3)
+```
+
+
+
+
+
+
+

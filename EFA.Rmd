@@ -1,0 +1,74 @@
+
+```{r 判断公共因子数}
+options(digits = 2)
+covariances<-ability.cov$cov
+correlations<-cov2cor(covariances)
+correlations#协方差矩阵
+fa.parallel(correlations,n.obs = 112,fa="both",n.iter = 100,
+            main="scree plots with paralell analysis")
+```
+
+```{r 提取公共因子}
+library(psych)
+fa<-fa(correlations,nfactors = 2,rotate = "none",fm="pa")
+fa
+```
+n.obs是观测数
+fm设定因子化方法：
+最大似然法ml(prefer)
+主轴迭代法pa(also OK)
+加权最小二乘法wls
+广义加权最小二乘法gls
+最小残差法minres
+
+```{r rotate}
+fa.varimax<-fa(correlations,nfactors = 2,rotate = "varimax",fm="pa")
+fa.varimax
+library(GPArotation)
+fa.promax<-fa(correlations,nfactors = 4,rotate = "promax",fm="pa")
+fa.promax
+```
+
+F=P*Phi
+F:因子载荷阵
+P:因子模式矩阵
+Phi:因子关联矩阵
+
+```{r 创建fsm函数}
+fsm<-function(oblique){
+  if (class(oblique)[2]=="fa" & is.null(oblique$Phi)){
+    warning("Object doesn't look like oblique EFA")
+  }else{
+    P<-unclass(oblique$loading)
+    F<-P %*% oblique$Phi
+    colnames(F)<-c("PA1","PA2")
+    return(F)
+  }
+}
+fsm(fa.promax)
+```
+
+```{r}
+factor.plot(fa.promax,labels = row.names(fa.promax$loadings))
+fa.diagram(fa.promax,simple = F)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

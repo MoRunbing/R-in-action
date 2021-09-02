@@ -1,0 +1,66 @@
+```{r 判断主成分个数}
+library(psych)
+fa.parallel(USJudgeRatings[,-1],fa="pc",n.iter=100,#100次模拟平行分析
+            show.legend=F,main="Scree plot with paralell analysis")
+#Kaiser-Harris准则：特征值大于一保留
+```
+
+```{r 挑出主成分}
+library(psych)
+pc<-principal(USJudgeRatings[,-1],nfactors=1,rotate="varimax",scores=T)
+pc
+```
+PC(i)包含了成分载荷,指观测变量与主成分的相关系数。
+h2指成分公因子方差，即主成分对每个变量的方差解释度。
+u2指成分唯一性，即方差无法被主成分解释的比例。
+SS loadings 行包含了与主成分相关联的特征值，指的是与特定主成分相关联的标准化后的方差值。
+Proportion Var 行表示的是每个主成分对整个数据集的解释程度。
+
+```{r}
+library(psych)
+fa.parallel(Harman23.cor$cov,n.obs=302,fa="pc",n.iter=100,
+            show.legend=F,main="Scree plot with parallel analysis")
+```
+
+```{r}
+library(psych)
+pc<-principal(Harman23.cor$cov,nfactors = 2,rotate = "none")
+pc
+```
+rotate方法(用于去噪)
+1.正交旋转varimax：使选择的成分不相关
+2.斜交旋转promax：相关
+
+```{r}
+rc<-principal(Harman23.cor$cov,nfactors = 2,rotate = "varimax")
+rc
+```
+
+```{r 成分得分}
+library(psych)
+pc<-principal(USJudgeRatings[,-1],nfactors = 1,scores = T)
+head(pc$scores)
+```
+
+```{r 相关系数}
+cor(USJudgeRatings$CONT,pc$scores)
+```
+
+```{r 主成分系数}
+library(psych)
+rc<-principal(Harman23.cor$cov,nfactors = 2,rotate="varimax")
+round(unclass(rc$weights),2)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

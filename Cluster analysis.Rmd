@@ -1,0 +1,125 @@
+---
+title: "cluster analysis"
+author: "MRB"
+date: "2021/6/5"
+output: html_document
+---
+
+```{r 层次聚类分析}
+library(flexclust)
+data(nutrient,package = "flexclust")
+row.names(nutrient)<-tolower(row.names(nutrient))#行名大小写转化
+nutrient.scaled<-scale(nutrient)#数据标准化
+
+d<-dist(nutrient.scaled)#距离矩阵
+fit.average<-hclust(d,method = "average")#层次聚类中的平均联动法
+plot(fit.average,hang=-1,cex=0.8,main="Average linkage clustering")
+```
+
+```{r}
+library(NbClust)
+devAskNewPage(ask = T)
+nc<-NbClust(nutrient.scaled,distance="euclidean",#欧几里得距离
+            min.nc=2,max.nc=15,method="average")
+table(nc$Best.n[1,])
+barplot(table(nc$Best.n[1,]),
+        xlab="Number of Clusters",
+        ylab="Number of criteria",
+        main="Number of Clusters Chosen by 26 Criteria")
+```
+
+```{r}
+clusters<-cutree(fit.average,k=5)#将树状图分为5类
+table(clusters)
+
+aggregate(nutrient,by=list(cluster=clusters),median)#提取每类中位数
+aggregate(as.data.frame(nutrient.scaled),by=list(cluster=clusters),median)
+
+plot(fit.average,hang = -1,cex=0.8,
+     main = "Average Clustering\n5 Cluster Solution")
+rect.hclust(fit.average,k=5)#叠加5类解决方案
+```
+
+```{r 划分聚类分析}
+#K means
+wssplot<-function(data,nc=15,seed=1234){
+  wss<-(nrow(data)-1)*sum(apply(data,2,var))
+  for (i in 2:nc){
+    set.seed(seed)
+    wss[i]<-sum(kmeans(data,centers = i)$withinss)}
+  plot(1:nc,wss,type="b",xlab="Number of Clusters",
+       ylab="Within groups sum of squares")}
+```
+
+```{r wine K means}
+data(wine,package = "rattle")
+head(wine)
+df<-scale(wine[-1])#聚类标准化
+
+wssplot(df)
+library(NbClust)
+set.seed(1234)
+devAskNewPage(ask = T)
+nc<-NbClust(df,min.nc = 2,max.nc = 15,method = "kmeans")
+table(nc$Best.n[1,])#决定聚类个数
+
+barplot(table(nc$Best.n[1,]),
+        xlab="Number of Clusters",
+        ylab="Number of Clusters Chosen by 26 Criteria")
+set.seed(1234)
+fit.km<-kmeans(df,3,nstart=25)
+fit.km$centers#k均值聚类分析
+
+aggregate(wine[-1],by=list(clusters=fit.km$cluster),mean)
+```
+
+```{r}
+ct.km<-table(wine$Type,fit.km$cluster)
+ct.km
+
+library(flexclust)
+randIndex(ct.km)
+#调整的兰德指数为两种划分提供了一种衡量两个分区之间的协定，即调整后机会的量度。
+#它的变化范围为-1（不同意）到1（完全同意）
+```
+
+```{r 基于质心的划分方法}
+library(cluster)
+set.seed(1234)
+fit.pam<-pam(wine[-1],k=3,stand=T)
+fit.pam$medoids
+clusplot(fit.pam,main="Bivariate Cluster Plot")
+
+ct.pam<-table(wine$Type,fit.pam$clustering)
+randIndex(ct.pam)#不如kmeans
+```
+
+```{r避免不存在的类}
+library(fMultivar)
+set.seed(1234)
+df<-rnorm2d(1000,rho=0.5)#相关系数0.5的二元正态分布抽1000个观测值
+df<-as.data.frame(df)
+plot(df,main="Bivariate Normal Diatribution with rho=0.5")#显然只有一类
+
+#确定聚类个数
+wssplot(df)
+library(NbClust)
+nc<-NbClust(df,min.nc=2,max.nc = 15,method = "kmeans")
+dev.new()
+barplot(table(nc$Best.n[1,]),
+        xlan="Number of Clusters",ylab="Number of Criteria",
+        main="Number of Clusters Chosen by 26 Criteria")
+
+#PAM双聚类分析
+library(ggplot2)
+library(cluster)
+fit<-pam(df,k=2)
+df$clustering<-factor(fit$clustering)
+ggplot(data=df,aes(x=V1,y=V2,color=clustering,shape=clustering))
++geom_point()+ggtitle("Clustering of Bivariate Normal Data")
+
+#立方聚类规则，帮助揭示不存在的结构
+plot(nc$All.index[,4],type="o",ylab=CCC,
+     xlab="Number of clusters",col="blue")
+```
+

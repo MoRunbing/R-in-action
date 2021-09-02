@@ -1,0 +1,203 @@
+---
+title: "Basic Statistics"
+author: "MRB"
+date: "2021/5/12"
+output: html_document
+---
+
+```{r Discriptive statistics}
+mtcars
+vars<-c("mpg","hp","wt")
+head(mtcars[vars])#提取这几列
+summary(mtcars[vars])
+sapply(mtcars,mean)#sd.var.min.max.median.length.range.quantile
+fivenum(mtcars$mpg)#五分位数
+```
+
+```{r}
+mystats<-function(x,na.omit=FALSE){
+  if(na.omit)
+    x<-x[!is.na(x)]
+  m<-mean(x)
+  n<-length(x)
+  s<-sd(x)
+  skew<-sum((x-m)^3/s^3)
+  kurt<-sum((x-m)^4/s^4)-3#normal distribution
+  return(c(n=n,mean=n,stdev=s,skew=skew,kurtosis=kurt))
+}
+sapply(mtcars[vars],mystats,na.omit=TRUE)#omit missing values
+```
+
+```{r}
+library(Hmisc)
+describe(mtcars[vars])
+```
+
+```{r}
+library(pastecs)
+stat.desc(mtcars[vars],basic=T,desc=T,norm=T,p=0.95)
+```
+
+```{r}
+library(psych)
+describe(mtcars[vars])
+```
+
+```{r}
+aggregate(mtcars[vars],by=list(am=mtcars$am),mean)
+aggregate(mtcars[vars],by=list(am=mtcars$am),sd)#用am=是为了保留am列标签而不是group.1
+```
+
+```{r}
+dstats<-function(x)sapply(x,mystats)
+by(mtcars[vars],mtcars$am,dstats)
+```
+
+
+```{r}
+library(doBy)
+summaryBy(mpg+hp+wt~am,data=mtcars,FUN=mystats)
+#~前为需分析的数值型变量，后为分类变量
+```
+
+```{r}
+library(psych)
+describeBy(mtcars[vars],list=(am=mtcars$am))
+```
+
+```{r 可视化}
+library(vcd)
+head(Arthritis)
+```
+
+```{r 一维列联表}
+mytable<-with(Arthritis,table(Improved))
+mytable
+prop.table(mytable)#比例值
+prop.table(mytable)*100
+```
+
+```{r 二维列联表}
+mytable<-xtabs(~Treatment+Improved,data=Arthritis)
+mytable
+margin.table(mytable,2)#编号代表第几个变量
+prop.table(mytable,1)
+addmargins(prop.table(mytable,1))
+```
+
+```{r}
+library(gmodels)
+CrossTable(Arthritis$Treatment,Arthritis$Improved)
+#还可以独立性检验，计算期望和残差
+```
+
+```{r 多维列联表}
+mytable<-xtabs(~Treatment+Sex+Improved,data=Arthritis)
+mytable
+
+ftable(mytable)
+
+margin.table(mytable,1)
+margin.table(mytable,2)
+margin.table(mytable,3)
+
+ftable(mytable,c(1,3))
+ftable(prop.table(mytable,c(1,2)))
+ftable(addmargins(prop.table(mytable,c(1,2)),3))
+ftable(addmargins(prop.table(mytable,c(1,2)),3))*100
+```
+
+```{r independence test 独立性检验}
+#卡方检验(数据多)
+library(vcd)
+mytable<-xtabs(~Treatment+Improved,data=Arthritis)
+chisq.test(mytable)
+mytable<-xtabs(~Improved+Sex,data=Arthritis)
+chisq.test(mytable)
+
+#Fisher精确检验(数据少)
+mytable<-xtabs(~Treatment+Improved,data=Arthritis)
+fisher.test(mytable)
+
+#Cochran-Mantel-Haenszel检验(数据分层)
+mytable<-xtabs(~Treatment+Improved+Sex,data=Arthritis)
+mantelhaen.test(mytable)
+```
+
+```{r correlation 相关性度量}
+#二维列联表
+library(vcd)
+mytable<-xtabs(~Treatment+Improved,data=Arthritis)
+assocstats(mytable)
+```
+
+```{r correlation index}
+#方阵
+states<-state.x77[,1:6]
+cov(states)#协方差
+cor(states)#pearson相关系数(定量变量)
+cor(states,method = "spearman")#spearman(等级变量)
+
+#非方阵
+x<-states[,c("Population","Income","Illiteracy","HS Grad")]
+y<-states[,c("Life Exp","Murder")]
+cor(x,y)
+```
+
+```{r 偏相关}
+library(ggm)
+colnames(states)
+pcor(c(1,2,3,5,6),cov(states))#前两个数值表示要计算相关系数的变量，后面的是要排除影响的
+```
+
+```{r 相关性检验}
+cor.test(states[,3],states[,5],alternative = "two.side",method = "pearson")
+#alternative 默认双侧检验two.side
+#单侧检验相关系数小于零“less”
+#大于零“greater”
+
+library(psych)
+corr.test(states,use="complete",method = "pearson")
+#use=pairwise对缺失值成对删除
+#complete成行删除
+
+```
+
+```{r 独立样本t检验}
+library(MASS)
+t.test(Prob~So,data = UScrime)
+#~前为数值变量，~后为二分变量
+t.test(UScrime$Prob,UScrime$U1)
+#两个数值变量
+```
+
+```{r 非独立样本的t检验}
+library(MASS)
+sapply(UScrime[c("U1","U2")],function(x)(c(mean=mean(x),sd=sd(x))))
+with(UScrime,t.test(U1,U2,paired=T))
+```
+
+```{r Mann-Whitney U检验}
+#成对数据，无法保证正态性
+with(UScrime,by(Prob,So,median))
+wilcox.test(Prob~So,data=UScrime)
+
+with(UScrime,wilcox.test(U1,U2,paired=T))
+```
+
+```{r 多组的比较}
+states<-data.frame(state.region,state.x77)
+#Kruskal-Wallis检验(各组独立)
+kruskal.test(Illiteracy~state.region,data = states)
+#Friedman检验(各组不独立)
+friedman.test(y~A|B,data=)
+
+```
+
+```{r 多组检验后的两两比较}
+#用p.adj()控制犯第一类错误的概率
+source("http://www.statmethods.net/RiA/wmc.txt")
+states<-data.frame(state.region,state.x77)
+wmc(Illiteracy~state.region,data=states,method = "holm")
+```
+
